@@ -219,10 +219,16 @@ def _extract_feature(batch, speed_perturb, wav_distortion_conf,
     sorted_ctc_time_idx = None
     if use_ctc_ref:
         ctc_time_idx = [x[3].split() for x in batch]
-        sorted_ctc_time_idx = [np.fromiter(
-            map(int, x), dtype=np.int32) for x in ctc_time_idx]
+        if speed_perturb:
+            # TODO: maybe need check the boundary whether the last index exceeds.
+            ctc_time_idx_np = [np.ceil(np.fromiter(
+                map(int, x), dtype=np.int32) / speed).astype(np.int32) \
+                               for x in ctc_time_idx]
+        else:
+            ctc_time_idx_np = [np.fromiter(
+                map(int, x), dtype=np.int32) for x in ctc_time_idx]
+        sorted_ctc_time_idx = [ctc_time_idx_np[i] for i in order]
     return sorted_keys, sorted_feats, sorted_labels, sorted_ctc_time_idx
-
 
 def _load_feature(batch, use_ctc_ref=False):
     """ Load acoustic feature from files.

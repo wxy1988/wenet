@@ -13,4 +13,4 @@ cmvn=true
 dir=exp/conformer
 align_dir=$dir/align_data
 
-tools/ctc_align.sh $feat_dir/$train_set $dir/final.pt $align_dir
+tools/ctc_align.sh --nj $nj $feat_dir/$train_set $dir/final.pt $align_dir

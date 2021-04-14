@@ -90,7 +90,7 @@ class CTC(torch.nn.Module):
             label = np.append(label, label[0])
             return label
 
-        lpz = self.log_softmax(h)
+        lpz = self.log_softmax(h.unsqueeze(0))
         lpz = lpz.squeeze(0)
 
         y_int = interpolate_blank(y, blank_id)

@@ -531,6 +531,7 @@ class ASRModel(torch.nn.Module):
             ctc_align.append(self.ctc.forced_align(
                 encoder_output[i][:speech_lengths[i]], tokens[i]))
             first_symbol_idx = []
+            first_symbol = []
             # find the time index where symbols first show
             for j in range(len(ctc_align[i])):
                 if j > 0 and ctc_align[i][j] == ctc_align[i][j - 1]:
@@ -538,7 +539,9 @@ class ASRModel(torch.nn.Module):
                 else:
                     if j == 0 and ctc_align[i][j] == blank_id:
                         continue
-                    first_symbol_idx.append(j)
+                    elif ctc_align[i][j] != blank_id:
+                        first_symbol_idx.append(j)
+                        first_symbol.append(ctc_align[i][j])
             if len(first_symbol_idx) != len(tokens[i]):
                 fail_num += 1
                 first_symbol_idx = []

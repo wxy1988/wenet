@@ -55,7 +55,7 @@ if __name__ == '__main__':
     dataset_conf['batch_size'] = args.batch_size
     dataset_conf['batch_type'] = 'static'
     dataset_conf['sort'] = False
-    test_dataset = AudioDataset(args.test_data, **dataset_conf, raw_wav=raw_wav)
+    test_dataset = AudioDataset(args.align_data, **dataset_conf, raw_wav=raw_wav)
     test_data_loader = DataLoader(test_dataset,
                                   collate_fn=test_collate_func,
                                   shuffle=False,
@@ -73,17 +73,17 @@ if __name__ == '__main__':
     model.eval()
     with torch.no_grad(), open(args.result_file, 'w', encoding='utf-8') as fout:
         for batch_idx, batch in enumerate(test_data_loader):
-            keys, feats, target, feats_lengths, target_lengths = batch
+            keys, feats, target, feats_lengths, target_lengths, _ = batch
             feats = feats.to(device)
             target = target.to(device)
             feats_lengths = feats_lengths.to(device)
             target_lengths = target_lengths.to(device)
 
             alignments, align_idx, fail_num = model.ctc_align(feats, feats_lengths, target)
+            if batch_idx != 0 and batch_idx % 200 == 0:
+                logging.info("{} batches have been processed.".format(batch_idx))
             if fail_num > 0:
-                logging.WARNING("{0} utterances failed to get alignment "
-                    "in batch {1}".format(fail_num, batch_idx))
-            
+                logging.warn("{0} utterances in batch {1} failed".format(fail_num, batch_idx))
             for i, key in enumerate(keys):
                 if len(align_idx[i]) != 0:
-                    fout.write(key + '\t' + ' '.join(align_idx[i]) + '\n')
+                    fout.write(key + '\t' + ' '.join(map(str, align_idx[i])) + '\n')
