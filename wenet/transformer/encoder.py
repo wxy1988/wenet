@@ -123,7 +123,7 @@ class BaseEncoder(torch.nn.Module):
         xs_lens: torch.Tensor,
         decoding_chunk_size: int = 0,
         num_decoding_left_chunks: int = -1,
-        alignments: torch.Tensor = None,
+        alignments: torch.Tensor = torch.empty(0),
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Embed positions in tensor.
 
@@ -154,6 +154,10 @@ class BaseEncoder(torch.nn.Module):
                                                          self.static_chunk_size,
                                                          num_decoding_left_chunks,
                                                          alignments)
+        print("xs size is: ")
+        print(xs.size())
+        print("chunk_masks is: ")
+        print(chunk_masks.size())
         for layer in self.encoders:
             xs, chunk_masks, _ = layer(xs, chunk_masks, pos_emb, mask_pad)
         if self.normalize_before:
@@ -161,7 +165,10 @@ class BaseEncoder(torch.nn.Module):
         # Here we assume the mask is not changed in encoder layers, so just
         # return the masks before encoder layers, and the masks will be used
         # for cross attention with decoder later
-        return xs, masks
+        if dec_masks.size()[0] == 0:
+            return xs, masks
+        else:
+            return xs, dec_masks
 
     def forward_chunk(
         self,

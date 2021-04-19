@@ -92,8 +92,9 @@ if __name__ == '__main__':
 
     raw_wav = configs['raw_wav']
 
+    ctc_ref = configs.get('use_ctc_ref', False)
     train_collate_func = CollateFunc(**configs['collate_conf'],
-                                     raw_wav=raw_wav)
+                                     raw_wav=raw_wav, use_ctc_ref=ctc_ref)
 
     cv_collate_conf = copy.deepcopy(configs['collate_conf'])
     # no augmenation on cv set
@@ -103,13 +104,16 @@ if __name__ == '__main__':
         cv_collate_conf['feature_dither'] = 0.0
         cv_collate_conf['speed_perturb'] = False
         cv_collate_conf['wav_distortion_conf']['wav_distortion_rate'] = 0
-    cv_collate_func = CollateFunc(**cv_collate_conf, raw_wav=raw_wav)
+    cv_collate_func = CollateFunc(**cv_collate_conf, raw_wav=raw_wav,
+                                  use_ctc_ref=ctc_ref)
 
     dataset_conf = configs.get('dataset_conf', {})
     train_dataset = AudioDataset(args.train_data,
                                  **dataset_conf,
-                                 raw_wav=raw_wav)
-    cv_dataset = AudioDataset(args.cv_data, **dataset_conf, raw_wav=raw_wav)
+                                 raw_wav=raw_wav,
+                                 use_ctc_ref=ctc_ref)
+    cv_dataset = AudioDataset(args.cv_data, **dataset_conf,
+                              raw_wav=raw_wav, use_ctc_ref=ctc_ref)
 
     if distributed:
         logging.info('training on multiple gpus, this gpu {}'.format(args.gpu))

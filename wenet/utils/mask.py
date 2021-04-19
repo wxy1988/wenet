@@ -83,7 +83,7 @@ def add_optional_chunk_mask(xs: torch.Tensor, masks: torch.Tensor,
                             use_dynamic_left_chunk: bool,
                             decoding_chunk_size: int, static_chunk_size: int,
                             num_decoding_left_chunks: int,
-                            alignments: torch.Tensor = None):
+                            alignments: torch.Tensor = torch.empty(0)):
     """ Apply optional mask for encoder.
 
     Args:
@@ -110,7 +110,7 @@ def add_optional_chunk_mask(xs: torch.Tensor, masks: torch.Tensor,
         torch.Tensor: chunk mask of the input xs.
     """
     # Whether to use chunk mask or not
-    dec_masks = None
+    dec_masks = torch.empty(0)
     if use_dynamic_chunk:
         max_len = xs.size(1)
         if decoding_chunk_size < 0:
@@ -145,27 +145,33 @@ def add_optional_chunk_mask(xs: torch.Tensor, masks: torch.Tensor,
                                             xs.device)  # (L, L)
         chunk_masks = chunk_masks.unsqueeze(0)  # (1, L, L)
         chunk_masks = masks & chunk_masks  # (B, L, L)
-        dec_masks = make_dec_mask(chunk_masks, alignments)  # (B, L, L)
+        if alignments.size()[0] != 0:
+            dec_masks = make_dec_mask(chunk_masks, masks, alignments)  # (B, Token_length+1, L)
+        # return chunk_masks, dec_masks
     else:
         chunk_masks = masks
     return chunk_masks, dec_masks
 
 
 def make_dec_mask(chunk_masks: torch.Tensor,
+                  masks: torch.Tensor,
                   alignments: torch.Tensor) -> torch.Tensor:
     """Make masks for the cross-layer info used in the decoder.
     Args:
         chunk_masks: (B, L, L)
+        masks: (B, 1, L), masks for input length padding
         alignments: (B, token_length), dtype=long, for index selection.
     Returns:
-        torch.Tensor: (B, token_length, L)
+        torch.Tensor: (B, token_length+1, L)
     """
     B, L, _ = chunk_masks.size()
     token_num = alignments.size(1)
     # token_num + 1 is for <eos>, and no masks are needed.
-    dec_masks = torch.zeros((B, token_num + 1, L), dtype=torch.bool)
+    dec_masks = torch.zeros((B, token_num + 1, L), device=alignments.device,
+                            dtype=torch.bool)
     for i in range(B):
-        dec_masks[i] = chunk_masks[i][alignments[i]]
+        dec_masks[i] = torch.cat((chunk_masks[i][alignments[i]],
+                                  masks[i]), dim=0)
 
     return dec_masks
 

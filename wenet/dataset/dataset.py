@@ -298,6 +298,7 @@ class CollateFunc(object):
         self.spec_sub = spec_sub
         self.spec_sub_conf = spec_sub_conf
         self.use_ctc_ref = use_ctc_ref
+        print("coll use_ctc_ref:{}".format(use_ctc_ref))
 
     def __call__(self, batch):
         assert (len(batch) == 1)
@@ -371,7 +372,7 @@ class AudioDataset(Dataset):
                  max_frames_in_batch=0,
                  sort=True,
                  raw_wav=True,
-                 ctc_ref=False):
+                 use_ctc_ref=False):
         """Dataset for loading audio data.
 
         Attributes::
@@ -405,12 +406,12 @@ class AudioDataset(Dataset):
         """
         assert batch_type in ['static', 'dynamic']
         data = []
-
+        print("use_ctc_ref: {}".format(use_ctc_ref))
         # Open in utf8 mode since meet encoding problem
         with codecs.open(data_file, 'r', encoding='utf-8') as f:
             for line in f:
                 arr = line.strip().split('\t')
-                if len(arr) != 7 and not ctc_ref:
+                if len(arr) != 7 and not use_ctc_ref:
                     continue
                 key = arr[0].split(':')[1]
                 tokenid = arr[5].split(':')[1]
@@ -418,7 +419,7 @@ class AudioDataset(Dataset):
                 if raw_wav:
                     wav_path = ':'.join(arr[1].split(':')[1:])
                     duration = int(float(arr[2].split(':')[1]) * 1000 / 10)
-                    if ctc_ref:
+                    if use_ctc_ref:
                         ctc_ref_time = arr[7].split(':')[1]
                         data.append((key, wav_path, duration, tokenid, ctc_ref_time))
                     else:
@@ -428,7 +429,7 @@ class AudioDataset(Dataset):
                     feat_info = arr[2].split(':')[1].split(',')
                     feat_dim = int(feat_info[1].strip())
                     num_frames = int(feat_info[0].strip())
-                    if ctc_ref:
+                    if use_ctc_ref:
                         ctc_ref_time = arr[7].split(':')[1]
                         data.append((key, feat_ark, num_frames, tokenid, ctc_ref_time))
                     else:
@@ -460,7 +461,7 @@ class AudioDataset(Dataset):
                 if num_frames_in_batch > max_frames_in_batch:
                     self.minibatch.append([])
                     num_frames_in_batch = length
-                if ctc_ref:
+                if use_ctc_ref:
                     self.minibatch[-1].append((
                         data[i][0], data[i][1], data[i][3], data[i][4]))
                 else:
@@ -472,7 +473,7 @@ class AudioDataset(Dataset):
                 end = min(cur + batch_size, num_data)
                 item = []
                 for i in range(cur, end):
-                    if ctc_ref:
+                    if use_ctc_ref:
                         item.append((data[i][0], data[i][1], data[i][3], data[i][4]))
                     else:
                         item.append((data[i][0], data[i][1], data[i][3]))

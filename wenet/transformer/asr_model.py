@@ -71,7 +71,7 @@ class ASRModel(torch.nn.Module):
         speech_lengths: torch.Tensor,
         text: torch.Tensor,
         text_lengths: torch.Tensor,
-        alignments: torch.Tensor = None,
+        alignments: torch.Tensor = torch.empty(0),
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
         """Frontend + Encoder + Decoder + Calc loss
 
@@ -87,8 +87,13 @@ class ASRModel(torch.nn.Module):
                 text_lengths.shape[0]), (speech.shape, speech_lengths.shape,
                                          text.shape, text_lengths.shape)
         # 1. Encoder
-        encoder_out, encoder_mask = self.encoder(speech, speech_lengths)
-        encoder_out_lens = encoder_mask.squeeze(1).sum(1)
+        # print(alignments.size())
+        encoder_out, encoder_mask = self.encoder(speech, speech_lengths, alignments=alignments)
+        
+        if alignments.size()[0] != 0:
+            encoder_out_lens = encoder_mask[:, -1, :].squeeze(1).sum(1)
+        else:
+            encoder_out_lens = encoder_mask.squeeze(1).sum(1)
 
         # 2a. Attention-decoder branch
         if self.ctc_weight != 1.0:
@@ -509,6 +514,7 @@ class ASRModel(torch.nn.Module):
         speech: torch.Tensor,
         speech_lengths: torch.tensor,
         tokens: torch.tensor,
+        token_lengths: torch.tensor,
         blank_id: int = 0
     ):
         """
@@ -518,6 +524,7 @@ class ASRModel(torch.nn.Module):
             speech (torch.Tensor): speech data, (B, T)
             speech_lengths (torch.tensor): speech length (B)
             tokens (torch.tensor): token id seq, (B, L)
+            token_lengths: the seq length of each utt, (B)
         """
         assert speech.size(0) == speech_lengths.size(0)
         assert speech.size(0) == tokens.size(0)
@@ -529,7 +536,7 @@ class ASRModel(torch.nn.Module):
         fail_num = 0
         for i in range(tokens.size(0)):
             ctc_align.append(self.ctc.forced_align(
-                encoder_output[i][:speech_lengths[i]], tokens[i]))
+                encoder_output[i][:speech_lengths[i]], tokens[i][:token_lengths[i]]))
             first_symbol_idx = []
             first_symbol = []
             # find the time index where symbols first show
@@ -542,7 +549,7 @@ class ASRModel(torch.nn.Module):
                     elif ctc_align[i][j] != blank_id:
                         first_symbol_idx.append(j)
                         first_symbol.append(ctc_align[i][j])
-            if len(first_symbol_idx) != len(tokens[i]):
+            if len(first_symbol_idx) != token_lengths[i]:
                 fail_num += 1
                 first_symbol_idx = []
             align_idx.append(first_symbol_idx)
